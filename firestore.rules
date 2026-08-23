@@ -1,0 +1,103 @@
+rules_version = '2';
+
+// ScenaBL Firestore Security Rules — implements NFR-SEC-004.
+// Paste into Firebase Console > Firestore Database > Rules (project: scenabl).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isOrganizer() {
+      return isSignedIn() && userRole() == 'organizer';
+    }
+
+    function ownsInstitution(institutionId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/institutions/$(institutionId)).data.ownerUid == request.auth.uid;
+    }
+
+    // Public profile fields (ime, prezime, profileImageUrl) are readable by
+    // anyone (e.g. guests browsing reviews); only the owner can write.
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    match /institutions/{institutionId} {
+      allow read: if true;
+      allow create: if isOrganizer() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isOrganizer() && resource.data.ownerUid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /titles/{titleId} {
+      allow read: if true;
+      allow create: if isOrganizer() && ownsInstitution(request.resource.data.institutionId);
+      allow update: if isOrganizer() && ownsInstitution(resource.data.institutionId);
+      allow delete: if false;
+    }
+
+    match /performances/{performanceId} {
+      allow read: if true;
+      allow create: if isOrganizer() && ownsInstitution(request.resource.data.institutionId);
+      // Organizers can edit their own performances in full. Any signed-in
+      // user may additionally update only `rezervisano`, within capacity —
+      // this is what lets a viewer's reservation transaction increment/
+      // decrement the seat counter without being able to touch anything
+      // else on the document.
+      allow update: if
+        (isOrganizer() && ownsInstitution(resource.data.institutionId)) ||
+        (isSignedIn() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rezervisano']) &&
+          request.resource.data.rezervisano >= 0 &&
+          request.resource.data.rezervisano <= resource.data.kapacitet);
+      allow delete: if false;
+    }
+
+    // Document id is `{userId}_{titleId}` (see UserListRemoteDataSource).
+    match /userLists/{listId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create, update: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        listId == request.auth.uid + '_' + request.resource.data.titleId;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /reservations/{reservationId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.brojKarata >= 1 &&
+        request.resource.data.brojKarata <= 10;
+      // Only allowed change is active -> cancelled by the owning user.
+      allow update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        resource.data.status == 'active' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+        request.resource.data.status == 'cancelled';
+      allow delete: if false;
+    }
+
+    // Document id is `{userId}_{titleId}` (see ReviewRemoteDataSource).
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        reviewId == request.auth.uid + '_' + request.resource.data.titleId &&
+        request.resource.data.ocjena >= 1 && request.resource.data.ocjena <= 5;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

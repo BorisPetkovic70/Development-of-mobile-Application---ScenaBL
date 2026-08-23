@@ -162,7 +162,19 @@ Gost (bez prijave) ulazi direktno na `HomeScreen` u read-only režimu; pokušaj 
 
 ---
 
-## 6. Profesorova lista provjere (checklist)
+## 6. Napomene iz faze implementacije Data layer-a (v2.1)
+
+Ovo poglavlje bilježi konkretne odluke donesene prilikom implementacije `data/model`, `data/remote` i `data/repository` slojeva (Implementation Order faza 2), koje precizuju ili dopunjuju poglavlja 2–3 ovog dokumenta i SRS poglavlje 6.1.
+
+- **`performances/{id}.status`** — dodato polje (`scheduled`\|`cancelled`), izostavljeno u originalnoj tabeli SRS 6.1, a potrebno za REQ-ORG-004 (otkazivanje izvođenja mijenja status, ne briše dokument), u skladu sa CRUD tabelom u poglavlju 3.4 ovog dokumenta.
+- **Deterministički ID umjesto auto-generisanog** — `reviews/{id}` i `userLists/{id}` koriste ID oblika `{userId}_{titleId}` umjesto Firestore auto-ID-a. Ovo direktno implementira poslovna pravila na nivou podataka umjesto dodatnih upita: REQ-REV-002 (najviše jedna recenzija po korisniku po naslovu — upis na isti ID prepisuje postojeću recenziju) i REQ-LIST-003 (naslov ne može biti istovremeno u obje lične liste — upis u "odgledano" prepisuje postojeći zapis za taj `titleId`, bez obzira koja je vrijednost `tipListe` prethodno bila upisana).
+- **`institutions/{id}` nema zaseban Repository** — CRUD za institucije izložen je kroz `UserRepository` (ne kroz poseban `InstitutionRepository`), jer poglavlje 4 ovog dokumenta institucije ne navodi kao zaseban ekran/ViewModel — organizator upravlja institucijom kao dijelom sopstvenog naloga.
+- **ImgBB upload nema zaseban Repository** — izložen je kroz `UserRepository` (profilna slika) i `TitleRepository` (slika naslova), u skladu sa tabelom u poglavlju 4 ("ProfileScreen | ... | UserRepository, ImgBB (preko UserRepository)").
+- **Rezervacija — Firestore transakcija u repository sloju** — `ReservationRepository.createReservation`/`cancelReservation` implementiraju punu atomičnu provjeru kapaciteta i (de)inkrement `rezervisano` polja (REQ-RES-002/003), pošto je transakciona logika po definiciji dio Data layer-a (poglavlje 3.4 ovog dokumenta). Poslovno pravilo o roku otkazivanja od 2 sata (REQ-RES-004) namjerno **nije** ovdje — to je ViewModel validacija (poglavlje 5, korak 12), pošto zavisi od trenutnog vremena u trenutku korisničke akcije, ne od strukture podataka.
+
+---
+
+## 7. Profesorova lista provjere (checklist)
 
 | Zahtjev iz `ProffesorSuggestion.md` | Kako je ispunjen |
 |---|---|

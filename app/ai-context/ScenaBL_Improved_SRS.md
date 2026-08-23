@@ -296,7 +296,7 @@ Firestore je NoSQL, dokument-orijentisana baza — nema stranih ključeva na niv
 | `users/{uid}` | id (=uid), ime, prezime, email, role (`viewer`\|`organizer`), favoriteGenres[], profileImageUrl | id je Firebase Auth UID — direktna veza naloga i podataka (ispravka propusta iz referentne Fishing App aplikacije, gdje `createdBy` nije bio povezan sa stvarnim UID-om) |
 | `institutions/{id}` | naziv, opis, ownerUid | `ownerUid` → `users/{uid}` sa `role == "organizer"` |
 | `titles/{id}` | naziv, opis, reziser, trajanje, zanr, tip (`pozoriste`\|`bioskop`), slikaUrl, institutionId | `institutionId` → `institutions/{id}` |
-| `performances/{id}` | titleId, institutionId, datumVrijeme, sala, kapacitet, rezervisano, cijena | `titleId` → `titles/{id}`, `institutionId` → `institutions/{id}` |
+| `performances/{id}` | titleId, institutionId, datumVrijeme, sala, kapacitet, rezervisano, cijena, status (`scheduled`\|`cancelled`) | `titleId` → `titles/{id}`, `institutionId` → `institutions/{id}`. Polje `status` dodato u v2.1 radi usklađivanja sa poglavljem 3.7/REQ-ORG-004 (otkazivanje izvođenja mijenja status, ne briše dokument) — izostavljeno u prethodnoj verziji ove tabele. |
 | `reservations/{id}` | userId, performanceId, brojKarata, status (`active`\|`cancelled`), datumKreiranja | `userId` → `users/{uid}`, `performanceId` → `performances/{id}` |
 | `reviews/{id}` | userId, titleId, ocjena, komentar, datum | `userId` → `users/{uid}`, `titleId` → `titles/{id}` |
 | `userLists/{id}` | userId, titleId, tipListe (`zelim_gledati`\|`odgledano`) | `userId` → `users/{uid}`, `titleId` → `titles/{id}` |
