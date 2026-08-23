@@ -9,7 +9,7 @@
 
 Verzija 1.0 je sadržavala neriješenu kontradikciju: zaglavlje dokumenta je navodilo "Backend: Firebase (Auth, Firestore, Storage)", dok je tekst u poglavlju 1.2 opisivao potpuno drugačiju arhitekturu — Node.js/Express REST API sa PostgreSQL bazom, uz Firebase korišćen samo za autentifikaciju. Ova verzija razrješava tu kontradikciju eksplicitnom odlukom:
 
-> **ScenaBL koristi isključivo Firebase (Firestore, Authentication, Storage) kao backend. Ne postoji zaseban Node.js/Express server niti relaciona baza.**
+> **ScenaBL koristi Firebase (Firestore, Authentication) kao primarni backend, uz ImgBB kao spoljni servis za hosting slika (vidi napomenu o izmjeni skladištenja slika ispod). Ne postoji zaseban Node.js/Express server niti relaciona baza.**
 
 Razlozi za ovu odluku:
 1. Referentna aplikacija ("Caster" / Fishing App), koja se koristi kao tehnički uzor za arhitekturu i implementaciju, već koristi tačno ovaj stek (Cloud Firestore + Firebase Auth), pa se dokazani, radni obrasci mogu direktno preuzeti i unaprijediti.
@@ -17,6 +17,10 @@ Razlozi za ovu odluku:
 3. Svi funkcionalni zahtjevi iz verzije 1.0 mogu se u potpunosti realizovati nad Firebase-om, bez gubitka funkcionalnosti.
 
 UI sistem je takođe bio otvoreno pitanje u verziji 1.0 (`[Ovdje unesi: XML ili Jetpack Compose]`); ova verzija ga rješava odlukom da se koristi **Jetpack Compose**.
+
+### Napomena o izmjeni skladištenja slika (v2.1)
+
+Firebase Storage zahtijeva aktivaciju plaćenog Blaze plana, što nije realna opcija za studentski projekat bez budžeta. Odluka je izmijenjena: čuvanje slika (profilna slika, slika naslova) obavlja se preko **ImgBB** (besplatan REST servis za hosting slika), dok Firestore i Authentication ostaju nepromijenjeni. Ova izmjena je ograničena isključivo na skladištenje slika.
 
 ---
 
@@ -36,7 +40,7 @@ Ciljevi aplikacije:
 
 ### 1.2 Opseg
 
-Aplikacija je Android klijent (Kotlin, Jetpack Compose) koji komunicira direktno sa Firebase platformom putem zvaničnog Firebase Android SDK-a — nema posrednog REST servera. Podaci o naslovima, izvođenjima, rezervacijama, recenzijama i ličnim listama čuvaju se u **Cloud Firestore** bazi. Autentifikacija korisnika i ustanova vrši se preko **Firebase Authentication**. Slike (profilne slike, slike naslova) čuvaju se u **Firebase Storage**.
+Aplikacija je Android klijent (Kotlin, Jetpack Compose) koji komunicira direktno sa Firebase platformom putem zvaničnog Firebase Android SDK-a — nema posrednog REST servera. Podaci o naslovima, izvođenjima, rezervacijama, recenzijama i ličnim listama čuvaju se u **Cloud Firestore** bazi. Autentifikacija korisnika i ustanova vrši se preko **Firebase Authentication**. Slike (profilne slike, slike naslova) čuvaju se preko **ImgBB** (REST servis za hosting slika; vidi napomenu o izmjeni skladištenja slika).
 
 Aplikacija je namijenjena isključivo Android platformi i radi u onlajn režimu uz ograničenu offline podršku (prikaz posljednjeg učitanog repertoara iz lokalnog keša).
 
@@ -68,7 +72,7 @@ ScenaBL je samostalna mobilna aplikacija koja se oslanja na Firebase kao spoljni
 - **Klijentska aplikacija:** Android aplikacija u Kotlinu, UI izgrađen u Jetpack Compose.
 - **Autentifikacija:** Firebase Authentication (email/lozinka).
 - **Baza podataka:** Cloud Firestore (NoSQL, dokument-orijentisana).
-- **Skladištenje slika:** Firebase Storage.
+- **Skladištenje slika:** ImgBB (REST API).
 - **Arhitektura aplikacije:** MVVM (Model–View–ViewModel) sa Repository slojem.
 
 Pojednostavljen arhitekturni dijagram:
@@ -81,7 +85,7 @@ flowchart LR
     end
     REPO --> AUTH[Firebase Authentication]
     REPO --> FS[(Cloud Firestore)]
-    REPO --> STORAGE[(Firebase Storage)]
+    REPO --> STORAGE[(ImgBB)]
 ```
 
 ### 2.2 Klase korisnika i karakteristike
@@ -97,14 +101,14 @@ flowchart LR
 
 - Mobilni uređaji: Android 8.0 (API 26) i novije verzije. *(Napomena: verzija 1.0 dokumenta je zahtijevala Android 14.0/API 36, što bi isključilo veliku većinu realnih uređaja u upotrebi; API 26 je usklađen sa preporukom profesora i sa minimalnom verzijom koju referentna Fishing App aplikacija podržava.)*
 - Internet konekcija: obavezna za rezervacije, recenzije, upravljanje repertoarom i učitavanje slika; pregled ranije učitanog repertoara moguć je i offline (keš).
-- Backend: Firebase projekat (Cloud Firestore, Authentication, Storage) — nema sopstvenog servera.
+- Backend: Firebase projekat (Cloud Firestore, Authentication) + ImgBB za slike — nema sopstvenog servera.
 
 ### 2.4 Ograničenja sistema
 
 **Tehnička ograničenja:**
 - Aplikacija radi isključivo na Android platformi (minimalno API 26).
 - Offline funkcionalnost je ograničena na prikaz posljednjeg učitanog repertoara; kreiranje rezervacija, recenzija i izmjena repertoara zahtijeva aktivnu internet konekciju.
-- Sve slike (profilne slike, slike naslova) čuvaju se isključivo u Firebase Storage.
+- Sve slike (profilne slike, slike naslova) čuvaju se isključivo preko ImgBB (URL slike se čuva u odgovarajućem Firestore dokumentu).
 - Firestore ne podržava relacione strane ključeve (foreign keys) na nivou baze — integritet referenci (npr. da `titleId` u rezervaciji zaista postoji) obezbjeđuje se na nivou aplikacije (repository sloj) i Firestore Security Rules, ne na nivou baze.
 
 **Poslovna pravila:**
@@ -147,7 +151,7 @@ Svaki zahtjev je označen jedinstvenim identifikatorom (REQ-XXX-NNN), po uzoru n
 
 ### 3.2 Upravljanje profilom
 
-- **REQ-PROF-001:** Korisnik može pregledati i izmijeniti ime, prezime i profilnu sliku. Slika se bira iz galerije ili kamere, uploaduje se u Firebase Storage (`profile_images/{uid}.jpg`), a URL se upisuje u `users/{uid}.profileImageUrl`.
+- **REQ-PROF-001:** Korisnik može pregledati i izmijeniti ime, prezime i profilnu sliku. Slika se bira iz galerije ili kamere, uploaduje se preko ImgBB REST API-ja, a vraćeni URL se upisuje u `users/{uid}.profileImageUrl`.
 - **REQ-PROF-002:** Korisnik podešava omiljene žanrove izborom iz fiksne liste (Komedija, Drama, Triler, Muzička predstava, Dokumentarni film, Akcija, Animirani film, Horor) putem višestrukog izbora (chip-ovi koji se mogu selektovati/deselektovati); izbor se čuva u `users/{uid}.favoriteGenres` kao lista.
 
 ### 3.3 Pregled i pretraga repertoara
@@ -212,7 +216,7 @@ Svaki zahtjev je označen jedinstvenim identifikatorom (REQ-XXX-NNN), po uzoru n
 
 - **Firebase Authentication** — registracija/prijava korisnika i ustanova (email/lozinka).
 - **Cloud Firestore** — čuvanje i sinhronizacija svih poslovnih podataka (naslovi, izvođenja, rezervacije, recenzije, liste, profili).
-- **Firebase Storage** — čuvanje profilnih slika i slika naslova.
+- **ImgBB** — čuvanje profilnih slika i slika naslova (besplatan REST servis za hosting slika; zamjena za Firebase Storage, koji zahtijeva plaćeni plan).
 - **Firebase Security Rules** — autorizacija pristupa na nivou dokumenta/kolekcije (zamjenjuje serversku autorizacionu logiku iz v1.0 dokumenta).
 
 ### 4.4 Komunikacioni interfejsi i format podataka
@@ -260,7 +264,7 @@ Primjer dokumenta u kolekciji `performances`:
 
 - **NFR-SEC-001 (lozinke):** Minimalna složenost lozinke — najmanje 8 karaktera, bar jedno veliko slovo, bar jedna cifra (validacija na klijentu prije slanja Firebase Authentication-u).
 - **NFR-SEC-002 (sesije):** Firebase Authentication čuva sesijski token lokalno na uređaju (perzistentna prijava); u odnosu na model sa v1.0 dokumenta ovo je namjerno drugačije od klasičnog "isteka sesije nakon 30 minuta" jer Firebase Auth SDK ne podržava server-side timeout sesije na ovaj način — umjesto toga, token se automatski osvježava, a korisnik se odjavljuje isključivo eksplicitnom akcijom. Ova razlika u odnosu na profesorov primjer se ovdje eksplicitno navodi kao svjesna arhitekturna odluka, a ne propust.
-- **NFR-SEC-003 (zaštita podataka):** Sav mrežni saobraćaj ka Firebase servisima ide isključivo preko TLS-a (obezbjeđeno od strane Firebase SDK-a, nije konfigurabilno niti isključivo). Podaci u mirovanju (at rest) u Cloud Firestore i Firebase Storage su enkriptovani od strane Google infrastrukture po difoltu (AES-256).
+- **NFR-SEC-003 (zaštita podataka):** Sav mrežni saobraćaj ka Firebase servisima ide isključivo preko TLS-a (obezbjeđeno od strane Firebase SDK-a, nije konfigurabilno niti isključivo). Podaci u mirovanju (at rest) u Cloud Firestore enkriptovani su od strane Google infrastrukture po difoltu (AES-256). Upload slika ka ImgBB API-ju takođe ide preko HTTPS/TLS-a; ImgBB je javni servis za hosting slika (vraća javno dostupan URL), pa se u njega ne smiju uploadovati osjetljivi ili privatni podaci — koristi se isključivo za slike koje su i inače javno vidljive u aplikaciji (profilne slike, slike naslova).
 - **NFR-SEC-004 (autorizacija):** Pristup podacima na nivou dokumenta definisan je Firestore Security Rules: korisnik može mijenjati isključivo svoj `users/{uid}` dokument i dokumente u `reservations`/`reviews`/`userLists` čiji `userId` odgovara njegovom UID-u; upis u `titles`/`performances` dozvoljen je samo nalozima sa `role == "organizer"` i to samo za dokumente sa odgovarajućim `institutionId`.
 
 ### 5.3 Upotrebljivost

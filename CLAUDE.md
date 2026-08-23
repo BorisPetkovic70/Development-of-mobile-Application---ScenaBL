@@ -84,3 +84,15 @@ If an architectural decision is unclear or conflicts with the SRS, stop and ask 
 - Keep the project buildable after each section whenever reasonably possible.
 - Follow `ai-context/ScenaBL_Improved_SRS.md` as the functional specification.
 - Follow `ai-context/ScenaBL_Implementation_Guide.md` as the technical implementation plan.
+
+
+## Implementation Order
+1. Project foundation (Verify config, Configure Firebase, Set up dependencies/structure, Create basic MVVM/DI).
+2. Data layer (Create models, Firebase remote data sources, repositories, Firestore structure/Rules).
+3. Authentication (Registration/login, Roles, Guest mode, Profile).
+4. Viewer core functionality (Home, Search/filtering, Title details).
+5. Personal functionality (Watchlists, Reservations, Cancellation).
+6. Reviews and ratings.
+7. Organizer functionality (Dashboard, Title CRUD, Performance CRUD, Reservation overview).
+8. UI/UX refinement (Navigation, States, Material 3, Validation).
+9. Testing and final verification.

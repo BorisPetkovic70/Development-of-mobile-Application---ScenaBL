@@ -2,6 +2,8 @@
 
 Ovaj dokument je tehnički plan implementacije za ScenaBL, zasnovan na `ScenaBL_Improved_SRS.md` i na obrascima verifikovanim u kodu referentne aplikacije "Caster" (Fishing App), u istom repozitorijumu. Cilj je da se iskoriste dokazani, radni dijelovi Fishing App-a (Firebase integracija, Retrofit stil, coroutine/`Flow` upotreba), uz nadogradnju arhitekture na standard koji zahtijeva ovaj kurs (MVVM, Repository sloj, strukturisano stanje) — pošto Fishing App tu arhitekturu **nema** (vidi poglavlje 5 za detaljnu mapu razlika).
 
+> **Izmjena u odnosu na prvobitni plan — čuvanje slika:** Firebase Storage zahtijeva Blaze (plaćeni) plan, što nije realna opcija za studentski projekat bez budžeta. Odluka je promijenjena: slike (profilna slika, slika naslova) se čuvaju preko **ImgBB** (besplatan servis za hosting slika, dostupan preko REST API-ja), na isti način na koji to već radi referentna Fishing App aplikacija. Firebase se i dalje koristi za Authentication i Firestore. Ova izmjena je ograničena na skladištenje slika — ne utiče na ostatak arhitekture (MVVM, Repository sloj, Firestore kao primarna baza).
+
 ---
 
 ## 1. Tehnološki stek
@@ -12,7 +14,7 @@ Ovaj dokument je tehnički plan implementacije za ScenaBL, zasnovan na `ScenaBL_
 | **Jetpack Compose** | UI sloj | Moderan, deklarativan pristup UI-ju; iako Fishing App koristi XML/View sistem, Compose je danas standardni izbor za nove Android projekte i bolje se uklapa sa `StateFlow`-om iz ViewModel-a. |
 | **Cloud Firestore** | Baza podataka | Isti servis koji Fishing App već koristi i dokazano radi (`FirebasePinManager`, kolekcije `map_pins`/`feed_posts`) — realtime sinhronizacija bez potrebe za sopstvenim serverom. |
 | **Firebase Authentication** | Registracija/prijava | Fishing App već koristi Firebase Auth (doduše anonimni). ScenaBL prelazi na email/lozinka prijavu, koristeći isti SDK. |
-| **Firebase Storage** | Čuvanje slika | Zamjenjuje Fishing App-ov spoljni imgbb.com servis; pošto je stek sada Firebase-only, prirodnije je i pouzdanije čuvati slike u istom oblak-projektu nego zavisiti od trećeg servisa. |
+| **ImgBB (REST API)** | Čuvanje slika | Firebase Storage zahtijeva plaćeni (Blaze) plan, što nije opcija za studentski projekat. ImgBB je besplatan servis za hosting slika koji Fishing App već dokazano koristi (`imgbb.com` upload preko REST poziva); ScenaBL preuzima isti obrazac umjesto Firebase Storage-a. |
 | **Kotlin Coroutines + Flow** | Asinhrono programiranje | Fishing App već ima jedan dobar primjer (`FirebasePinManager.getPinsFlow()` preko `callbackFlow`); ScenaBL ovaj obrazac generalizuje na sve repozitorijume, umjesto da (kao ostatak Fishing App-a) koristi callback-e (`onSuccess`/`onError`). |
 | **Navigation Compose** | Navigacija | Zamjenjuje Fishing App-ov obrazac više Activity-ja povezanih Intent-ima i dupliranom `BottomNavigationView` logikom u svakoj Activity-ju — jedan `NavHost` u jednoj Activity-ju je standard za Compose aplikacije i eliminiše duplikat kod. |
 | **Coil** | Učitavanje slika u UI | Compose-native biblioteka za slike (analogno Glide-u koji se pominje u ScenaBL.md v1.0, ali je Coil prirodniji izbor uz Compose). |
@@ -29,7 +31,7 @@ Fishing App nema nikakvu slojevitu strukturu — svih 17 Kotlin fajlova je u jed
 com.example.scenabl/
   data/
     model/          // Korisnik, Naslov, Izvodjenje, Rezervacija, Recenzija, KorisnickaLista (data class-e)
-    remote/          // Firebase wrapper klase (Firestore/Auth/Storage pristup) — DAO ekvivalent
+    remote/          // Firebase wrapper klase (Firestore/Auth pristup) + ImgBB REST klijent — DAO ekvivalent
     repository/      // AuthRepository, UserRepository, TitleRepository, PerformanceRepository,
                       // ReservationRepository, ReviewRepository, UserListRepository
   ui/
@@ -47,7 +49,7 @@ com.example.scenabl/
 - **`ui/`** — isključivo prikaz stanja i prosljeđivanje korisničkih akcija ViewModel-u; ne sadrži poslovnu logiku niti direktne pozive Firebase SDK-a (za razliku od Fishing App-a, gdje Activity direktno poziva `FirebasePinManager`/`FirebaseFirestore`).
 - **`viewmodel/`** — drži `MutableStateFlow<UiState>` po ekranu, poziva repository funkcije unutar `viewModelScope`, validira formu prije slanja.
 - **`repository/`** — jedina tačka koja poziva `remote/` klase; vraća `Flow`/`suspend` rezultate, po potrebi mapira Firebase greške u čitljive poruke.
-- **`remote/`** — tanak omotač oko Firestore/Auth/Storage poziva (analogno `FirebasePinManager` iz Fishing App-a, ali dosljedno `suspend`/`Flow`, ne mješavina callback-a i Flow-a).
+- **`remote/`** — tanak omotač oko Firestore/Auth poziva i ImgBB REST poziva za upload slika (analogno `FirebasePinManager` iz Fishing App-a, ali dosljedno `suspend`/`Flow`, ne mješavina callback-a i Flow-a).
 - **`di/AppContainer`** — kreira i drži singltone repozitorijuma/remote klasa; svaka Activity/Application ih dobija iz jednog mjesta, umjesto ručnog `= FirebasePinManager()` na više mjesta (kako to radi Fishing App).
 
 ---
@@ -129,7 +131,7 @@ Rezervacija je jedini entitet kojem je potrebna **Firestore transakcija** (`fire
 | ReservationScreen | ReservationViewModel | ReservationRepository, PerformanceRepository |
 | MyListsScreen | MyListsViewModel | UserListRepository, TitleRepository |
 | MyReservationsScreen | MyReservationsViewModel | ReservationRepository |
-| ProfileScreen | ProfileViewModel | UserRepository, Firebase Storage (preko UserRepository) |
+| ProfileScreen | ProfileViewModel | UserRepository, ImgBB (preko UserRepository) |
 | OrganizerDashboardScreen | OrganizerViewModel | TitleRepository, PerformanceRepository, ReservationRepository |
 | OrganizerTitleFormScreen / OrganizerPerformanceFormScreen | OrganizerFormViewModel | TitleRepository, PerformanceRepository |
 
@@ -143,10 +145,10 @@ Gost (bez prijave) ulazi direktno na `HomeScreen` u read-only režimu; pokušaj 
 ## 5. Redoslijed implementacije
 
 1. Kreiranje Android projekta (Empty Compose Activity), podešavanje `applicationId`, minSdk 26.
-2. Podešavanje Firebase projekta (Firestore, Authentication — email/lozinka provider, Storage) i dodavanje `google-services.json` (isti korak kao u Fishing App-u).
-3. Dodavanje zavisnosti: Compose BOM, Navigation Compose, Firebase BOM (firestore-ktx, auth-ktx, storage-ktx), Coil, kotlinx-coroutines-play-services.
+2. Podešavanje Firebase projekta (Firestore, Authentication — email/lozinka provider) i dodavanje `google-services.json` (isti korak kao u Fishing App-u). Firebase Storage se ne koristi (zahtijeva plaćeni Blaze plan); umjesto toga koristi se ImgBB nalog/API ključ za upload slika.
+3. Dodavanje zavisnosti: Compose BOM, Navigation Compose, Firebase BOM (firestore-ktx, auth-ktx — bez storage-ktx), Coil, kotlinx-coroutines-play-services, Retrofit/OkHttp (za ImgBB REST pozive).
 4. Definisanje data klasa u `data/model/` (Korisnik, Naslov, Izvodjenje, Rezervacija, Recenzija, KorisnickaLista).
-5. Implementacija `data/remote/` klasa (Firestore/Auth/Storage omotači) — po uzoru na `FirebasePinManager`.
+5. Implementacija `data/remote/` klasa (Firestore/Auth omotači + ImgBB REST klijent) — po uzoru na `FirebasePinManager`.
 6. Implementacija `data/repository/` klasa iznad remote sloja.
 7. Implementacija `di/AppContainer`-a koji kreira i drži repository singltone.
 8. Implementacija ViewModel-a po ekranu, sa `StateFlow<UiState>`.
@@ -156,7 +158,7 @@ Gost (bez prijave) ulazi direktno na `HomeScreen` u read-only režimu; pokušaj 
 12. Validacija formi i obrada grešaka (lozinka, obavezna polja, kapacitet, rok za otkazivanje) u ViewModel sloju.
 13. Podešavanje Firestore Security Rules (uloga, vlasništvo dokumenta) prije puštanja u produkciju.
 14. Testiranje: jedinični testovi za ViewModel (sa fake/mock repository implementacijama) i repository logiku (npr. provjera kapaciteta); ručno testiranje UI toka.
-15. Finalno čišćenje: uklanjanje debug logova, provjera da nijedan API ključ nije hardkodovan u izvornom kodu (Fishing App ima ovaj propust sa OpenWeatherMap ključem — izbjeći ga korišćenjem `local.properties`/`BuildConfig`, kao što Fishing App već radi za imgbb ključ).
+15. Finalno čišćenje: uklanjanje debug logova, provjera da nijedan API ključ nije hardkodovan u izvornom kodu (Fishing App ima ovaj propust sa OpenWeatherMap ključem — izbjeći ga korišćenjem `local.properties`/`BuildConfig`, kao što Fishing App već radi za imgbb ključ; ScenaBL koristi isti obrazac i za svoj ImgBB ključ).
 
 ---
 
@@ -174,7 +176,7 @@ Gost (bez prijave) ulazi direktno na `HomeScreen` u read-only režimu; pokušaj 
 | Pouzdanost/dostupnost — ponašanje pri gubitku mreže | SRS NFR-REL-001 (Firestore offline keš + korisnička poruka). |
 | API-jevi — konkretni endpoint-i i tehnologija | SRS poglavlje 4.4 — pošto nema REST servera, tabela eksplicitno mapira svaku planiranu operaciju na konkretan Firestore/Auth SDK poziv, umjesto da samo kaže "koristi se Firebase". |
 | Format podataka — eksplicitno JSON | SRS poglavlje 4.4, sa primjerom dokumenta. |
-| Usluge trećih strana imenovane sa funkcijom | SRS poglavlje 4.3 (Firebase Authentication, Firestore, Storage, Security Rules — svaka sa opisanom ulogom). |
+| Usluge trećih strana imenovane sa funkcijom | SRS poglavlje 4.3 (Firebase Authentication, Firestore, Security Rules, ImgBB — svaka sa opisanom ulogom). |
 | Rečnik ključnih pojmova | SRS poglavlje 1.3 (tabela pojmova). |
 | Jasno definisana ograničenja (tehnička i poslovna) | SRS poglavlje 2.4. |
 | Realan opseg, jasno šta je uključeno a šta ne | SRS poglavlje 2.5 (MVP — eksplicitna lista van-opsega stavki sa obrazloženjem). |

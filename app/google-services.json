@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1050003914435",
+    "project_id": "scenabl",
+    "storage_bucket": "scenabl.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050003914435:android:c011809ffa30d512a32c76",
+        "android_client_info": {
+          "package_name": "com.example.scenabl"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmHrfmObjNmZ7sKb9ho2UQ-1N4epsNpjk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
