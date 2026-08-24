@@ -13,11 +13,17 @@ import androidx.navigation.navArgument
 import com.example.scenabl.di.AppContainer
 import com.example.scenabl.ui.screens.AuthScreen
 import com.example.scenabl.ui.screens.HomeScreen
+import com.example.scenabl.ui.screens.MyListsScreen
+import com.example.scenabl.ui.screens.MyReservationsScreen
 import com.example.scenabl.ui.screens.ProfileScreen
+import com.example.scenabl.ui.screens.ReservationScreen
 import com.example.scenabl.ui.screens.TitleDetailsScreen
 import com.example.scenabl.viewmodel.AuthViewModel
 import com.example.scenabl.viewmodel.HomeViewModel
+import com.example.scenabl.viewmodel.MyListsViewModel
+import com.example.scenabl.viewmodel.MyReservationsViewModel
 import com.example.scenabl.viewmodel.ProfileViewModel
+import com.example.scenabl.viewmodel.ReservationViewModel
 import com.example.scenabl.viewmodel.TitleDetailsViewModel
 
 @Composable
@@ -79,23 +85,59 @@ fun ScenaBLApp(appContainer: AppContainer) {
             arguments = listOf(navArgument("titleId") { type = NavType.StringType })
         ) { backStackEntry ->
             val titleId = backStackEntry.arguments?.getString("titleId").orEmpty()
+            val currentUserId = appContainer.authRepository.currentUserId
             val titleDetailsViewModel: TitleDetailsViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
                         TitleDetailsViewModel(
                             titleId,
+                            currentUserId,
                             appContainer.titleRepository,
                             appContainer.performanceRepository,
                             appContainer.reviewRepository,
-                            appContainer.userRepository
+                            appContainer.userRepository,
+                            appContainer.userListRepository
                         )
                     }
                 }
             )
             TitleDetailsScreen(
                 viewModel = titleDetailsViewModel,
-                onBack = { navController.popBackStack() }
+                isLoggedIn = currentUserId != null,
+                onBack = { navController.popBackStack() },
+                onReserveClick = { performanceId -> navController.navigate(Screen.Reservation.route(performanceId)) },
+                onLoginRequired = { navController.navigate(Screen.Auth.route) }
             )
+        }
+
+        composable(
+            route = Screen.Reservation.route,
+            arguments = listOf(navArgument("performanceId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val performanceId = backStackEntry.arguments?.getString("performanceId").orEmpty()
+            val uid = appContainer.authRepository.currentUserId
+            if (uid == null) {
+                LaunchedEffect(Unit) { navController.popBackStack() }
+            } else {
+                val reservationViewModel: ReservationViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer {
+                            ReservationViewModel(
+                                performanceId,
+                                uid,
+                                appContainer.reservationRepository,
+                                appContainer.performanceRepository,
+                                appContainer.titleRepository
+                            )
+                        }
+                    }
+                )
+                ReservationScreen(
+                    viewModel = reservationViewModel,
+                    onBack = { navController.popBackStack() },
+                    onReserved = { navController.popBackStack() }
+                )
+            }
         }
 
         composable(Screen.Profile.route) {
@@ -116,7 +158,51 @@ fun ScenaBLApp(appContainer: AppContainer) {
                         navController.navigate(Screen.Auth.route) {
                             popUpTo(0) { inclusive = true }
                         }
+                    },
+                    onMyListsClick = { navController.navigate(Screen.MyLists.route) },
+                    onMyReservationsClick = { navController.navigate(Screen.MyReservations.route) }
+                )
+            }
+        }
+
+        composable(Screen.MyLists.route) {
+            val uid = appContainer.authRepository.currentUserId
+            if (uid == null) {
+                LaunchedEffect(Unit) { navController.popBackStack() }
+            } else {
+                val myListsViewModel: MyListsViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer { MyListsViewModel(uid, appContainer.userListRepository, appContainer.titleRepository) }
                     }
+                )
+                MyListsScreen(
+                    viewModel = myListsViewModel,
+                    onBack = { navController.popBackStack() },
+                    onTitleClick = { titleId -> navController.navigate(Screen.TitleDetails.route(titleId)) }
+                )
+            }
+        }
+
+        composable(Screen.MyReservations.route) {
+            val uid = appContainer.authRepository.currentUserId
+            if (uid == null) {
+                LaunchedEffect(Unit) { navController.popBackStack() }
+            } else {
+                val myReservationsViewModel: MyReservationsViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer {
+                            MyReservationsViewModel(
+                                uid,
+                                appContainer.reservationRepository,
+                                appContainer.performanceRepository,
+                                appContainer.titleRepository
+                            )
+                        }
+                    }
+                )
+                MyReservationsScreen(
+                    viewModel = myReservationsViewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

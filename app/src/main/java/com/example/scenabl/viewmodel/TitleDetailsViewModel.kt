@@ -3,12 +3,14 @@ package com.example.scenabl.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.scenabl.data.model.Izvodjenje
+import com.example.scenabl.data.model.KorisnickaLista
 import com.example.scenabl.data.model.Naslov
 import com.example.scenabl.data.model.PerformanceStatus
 import com.example.scenabl.data.model.Recenzija
 import com.example.scenabl.data.repository.PerformanceRepository
 import com.example.scenabl.data.repository.ReviewRepository
 import com.example.scenabl.data.repository.TitleRepository
+import com.example.scenabl.data.repository.UserListRepository
 import com.example.scenabl.data.repository.UserRepository
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,6 +37,8 @@ data class TitleDetailsUiState(
     val reviews: List<ReviewItem> = emptyList(),
     val averageRating: Double = 0.0,
     val reviewCount: Int = 0,
+    val listEntry: KorisnickaLista? = null,
+    val isTogglingList: Boolean = false,
     val isLoading: Boolean = true,
     val errorMessage: String? = null
 )
@@ -42,10 +46,12 @@ data class TitleDetailsUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 class TitleDetailsViewModel(
     private val titleId: String,
+    private val currentUserId: String?,
     private val titleRepository: TitleRepository,
     private val performanceRepository: PerformanceRepository,
     private val reviewRepository: ReviewRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val userListRepository: UserListRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TitleDetailsUiState())
@@ -54,6 +60,15 @@ class TitleDetailsViewModel(
     private val reviewerNames = mutableMapOf<String, String>()
 
     init {
+        val uid = currentUserId
+        if (uid != null) {
+            viewModelScope.launch {
+                userListRepository.observeListEntry(uid, titleId).collect { entry ->
+                    _uiState.update { it.copy(listEntry = entry) }
+                }
+            }
+        }
+
         viewModelScope.launch {
             titleRepository.observeTitle(titleId).collect { naslov ->
                 _uiState.update { it.copy(naslov = naslov, isLoading = false) }
@@ -92,6 +107,24 @@ class TitleDetailsViewModel(
                 }
                 loadMissingReviewerNames(sorted.map { it.userId }.distinct())
             }
+        }
+    }
+
+    /** Toggles this title's membership in the given list; setting one type overwrites the other (REQ-LIST-003). */
+    fun onListToggle(tipListe: String) {
+        val uid = currentUserId ?: return
+        val current = _uiState.value.listEntry
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTogglingList = true) }
+            val result = if (current?.tipListe == tipListe) {
+                userListRepository.removeListEntry(uid, titleId)
+            } else {
+                userListRepository.setListEntry(KorisnickaLista(userId = uid, titleId = titleId, tipListe = tipListe))
+            }
+            result.fold(
+                onSuccess = { _uiState.update { it.copy(isTogglingList = false) } },
+                onFailure = { e -> _uiState.update { it.copy(isTogglingList = false, errorMessage = e.message) } }
+            )
         }
     }
 

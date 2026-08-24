@@ -7,4 +7,9 @@ sealed class Screen(val route: String) {
     object TitleDetails : Screen("titleDetails/{titleId}") {
         fun route(titleId: String) = "titleDetails/$titleId"
     }
+    object Reservation : Screen("reservation/{performanceId}") {
+        fun route(performanceId: String) = "reservation/$performanceId"
+    }
+    object MyLists : Screen("myLists")
+    object MyReservations : Screen("myReservations")
 }

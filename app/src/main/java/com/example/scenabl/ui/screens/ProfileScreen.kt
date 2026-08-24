@@ -45,7 +45,9 @@ import com.example.scenabl.viewmodel.ProfileViewModel
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel,
-    onLoggedOut: () -> Unit
+    onLoggedOut: () -> Unit,
+    onMyListsClick: () -> Unit,
+    onMyReservationsClick: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -120,6 +122,13 @@ fun ProfileScreen(
                     selected = state.selectedGenres,
                     onToggle = viewModel::onGenreToggle
                 )
+
+                OutlinedButton(onClick = onMyListsClick, modifier = Modifier.fillMaxWidth()) {
+                    Text("Moje liste")
+                }
+                OutlinedButton(onClick = onMyReservationsClick, modifier = Modifier.fillMaxWidth()) {
+                    Text("Moje rezervacije")
+                }
             }
 
             state.message?.let { message ->

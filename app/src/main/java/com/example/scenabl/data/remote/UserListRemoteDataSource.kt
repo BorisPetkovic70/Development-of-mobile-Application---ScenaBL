@@ -27,6 +27,17 @@ class UserListRemoteDataSource(private val firestore: FirebaseFirestore) {
         userLists.document(entryId(userId, titleId)).delete().await()
     }
 
+    fun observeListEntry(userId: String, titleId: String): Flow<KorisnickaLista?> = callbackFlow {
+        val listener = userLists.document(entryId(userId, titleId)).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            trySend(snapshot?.toObject(KorisnickaLista::class.java))
+        }
+        awaitClose { listener.remove() }
+    }
+
     fun observeUserLists(userId: String): Flow<List<KorisnickaLista>> = callbackFlow {
         val listener = userLists.whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->

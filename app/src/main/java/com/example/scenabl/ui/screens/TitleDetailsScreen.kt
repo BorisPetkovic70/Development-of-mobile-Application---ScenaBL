@@ -16,9 +16,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scenabl.data.model.Izvodjenje
+import com.example.scenabl.data.model.ListType
 import com.example.scenabl.data.model.TitleType
 import com.example.scenabl.ui.components.RatingStars
 import com.example.scenabl.ui.util.formatDate
@@ -47,7 +50,10 @@ import com.example.scenabl.viewmodel.TitleDetailsViewModel
 @Composable
 fun TitleDetailsScreen(
     viewModel: TitleDetailsViewModel,
-    onBack: () -> Unit
+    isLoggedIn: Boolean,
+    onBack: () -> Unit,
+    onReserveClick: (String) -> Unit,
+    onLoginRequired: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -125,6 +131,15 @@ fun TitleDetailsScreen(
                         }
                     }
 
+                    item {
+                        WatchlistRow(
+                            isLoggedIn = isLoggedIn,
+                            selectedType = state.listEntry?.tipListe,
+                            isToggling = state.isTogglingList,
+                            onToggle = { type -> if (isLoggedIn) viewModel.onListToggle(type) else onLoginRequired() }
+                        )
+                    }
+
                     if (naslov.opis.isNotBlank()) {
                         item {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -142,7 +157,10 @@ fun TitleDetailsScreen(
                         item { Text("Trenutno nema zakazanih izvođenja.", style = MaterialTheme.typography.bodyMedium) }
                     } else {
                         items(state.upcomingPerformances, key = { it.id }) { performance ->
-                            PerformanceRow(performance)
+                            PerformanceRow(
+                                performance = performance,
+                                onReserveClick = { if (isLoggedIn) onReserveClick(performance.id) else onLoginRequired() }
+                            )
                         }
                     }
 
@@ -166,7 +184,39 @@ fun TitleDetailsScreen(
 }
 
 @Composable
-private fun PerformanceRow(performance: Izvodjenje) {
+private fun WatchlistRow(
+    isLoggedIn: Boolean,
+    selectedType: String?,
+    isToggling: Boolean,
+    onToggle: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = selectedType == ListType.ZELIM_GLEDATI,
+                onClick = { onToggle(ListType.ZELIM_GLEDATI) },
+                enabled = !isToggling,
+                label = { Text("Želim gledati") }
+            )
+            FilterChip(
+                selected = selectedType == ListType.ODGLEDANO,
+                onClick = { onToggle(ListType.ODGLEDANO) },
+                enabled = !isToggling,
+                label = { Text("Odgledano") }
+            )
+        }
+        if (!isLoggedIn) {
+            Text(
+                text = "Prijavite se da biste dodavali naslove na lične liste.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun PerformanceRow(performance: Izvodjenje, onReserveClick: () -> Unit) {
     val remaining = (performance.kapacitet - performance.rezervisano).coerceAtLeast(0)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -178,6 +228,10 @@ private fun PerformanceRow(performance: Izvodjenje) {
                 style = MaterialTheme.typography.bodySmall,
                 color = if (remaining > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
             )
+            Spacer(modifier = Modifier.size(8.dp))
+            Button(onClick = onReserveClick, enabled = remaining > 0) {
+                Text(if (remaining > 0) "Rezerviši" else "Rasprodato")
+            }
         }
     }
 }

@@ -24,6 +24,18 @@ class PerformanceRemoteDataSource(private val firestore: FirebaseFirestore) {
         awaitClose { listener.remove() }
     }
 
+    /** All performances regardless of status/date, for joining against a user's reservation history. */
+    fun observeAllPerformances(): Flow<List<Izvodjenje>> = callbackFlow {
+        val listener = performances.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            trySend(snapshot?.toObjects(Izvodjenje::class.java) ?: emptyList())
+        }
+        awaitClose { listener.remove() }
+    }
+
     /**
      * All scheduled performances ordered by date (soonest first), for
      * HomeScreen browsing (REQ-BROW-001). Filters only on `status` so no

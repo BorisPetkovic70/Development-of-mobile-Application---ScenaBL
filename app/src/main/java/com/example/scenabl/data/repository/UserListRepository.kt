@@ -16,4 +16,7 @@ class UserListRepository(private val remote: UserListRemoteDataSource) {
 
     fun observeUserLists(userId: String): Flow<List<KorisnickaLista>> =
         remote.observeUserLists(userId)
+
+    fun observeListEntry(userId: String, titleId: String): Flow<KorisnickaLista?> =
+        remote.observeListEntry(userId, titleId)
 }
