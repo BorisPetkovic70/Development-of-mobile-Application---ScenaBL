@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.scenabl.data.model.Izvodjenje
 import com.example.scenabl.data.model.KorisnickaLista
+import com.example.scenabl.data.model.ListType
 import com.example.scenabl.data.model.Naslov
 import com.example.scenabl.data.model.PerformanceStatus
 import com.example.scenabl.data.model.Recenzija
@@ -39,9 +40,15 @@ data class TitleDetailsUiState(
     val reviewCount: Int = 0,
     val listEntry: KorisnickaLista? = null,
     val isTogglingList: Boolean = false,
+    val myReview: Recenzija? = null,
+    val isSubmittingReview: Boolean = false,
+    val reviewErrorMessage: String? = null,
     val isLoading: Boolean = true,
     val errorMessage: String? = null
-)
+) {
+    /** Reviewing is gated on the title being in the user's "Odgledano" list (REQ-REV-001). */
+    val canReview: Boolean get() = listEntry?.tipListe == ListType.ODGLEDANO
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TitleDetailsViewModel(
@@ -102,7 +109,8 @@ class TitleDetailsViewModel(
                     it.copy(
                         reviews = sorted.map { r -> ReviewItem(r, reviewerNames[r.userId] ?: "Korisnik") },
                         averageRating = average,
-                        reviewCount = reviews.size
+                        reviewCount = reviews.size,
+                        myReview = currentUserId?.let { uid -> reviews.find { r -> r.userId == uid } }
                     )
                 }
                 loadMissingReviewerNames(sorted.map { it.userId }.distinct())
@@ -124,6 +132,31 @@ class TitleDetailsViewModel(
             result.fold(
                 onSuccess = { _uiState.update { it.copy(isTogglingList = false) } },
                 onFailure = { e -> _uiState.update { it.copy(isTogglingList = false, errorMessage = e.message) } }
+            )
+        }
+    }
+
+    /** Creates or edits (REQ-REV-002) the current user's review for this title. */
+    fun submitReview(ocjena: Int, komentar: String) {
+        val uid = currentUserId ?: return
+        if (!_uiState.value.canReview || ocjena !in 1..5) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmittingReview = true, reviewErrorMessage = null) }
+            val recenzija = Recenzija(userId = uid, titleId = titleId, ocjena = ocjena, komentar = komentar.take(500))
+            reviewRepository.upsertReview(recenzija).fold(
+                onSuccess = { _uiState.update { it.copy(isSubmittingReview = false) } },
+                onFailure = { e -> _uiState.update { it.copy(isSubmittingReview = false, reviewErrorMessage = e.message) } }
+            )
+        }
+    }
+
+    fun deleteReview() {
+        val uid = currentUserId ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmittingReview = true, reviewErrorMessage = null) }
+            reviewRepository.deleteReview(uid, titleId).fold(
+                onSuccess = { _uiState.update { it.copy(isSubmittingReview = false) } },
+                onFailure = { e -> _uiState.update { it.copy(isSubmittingReview = false, reviewErrorMessage = e.message) } }
             )
         }
     }

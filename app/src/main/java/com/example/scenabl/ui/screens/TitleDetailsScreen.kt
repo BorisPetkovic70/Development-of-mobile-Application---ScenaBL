@@ -25,21 +25,31 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.example.scenabl.data.model.Izvodjenje
 import com.example.scenabl.data.model.ListType
+import com.example.scenabl.data.model.Recenzija
 import com.example.scenabl.data.model.TitleType
+import com.example.scenabl.ui.components.RatingInput
 import com.example.scenabl.ui.components.RatingStars
 import com.example.scenabl.ui.util.formatDate
 import com.example.scenabl.ui.util.formatDateTime
@@ -56,6 +66,15 @@ fun TitleDetailsScreen(
     onLoginRequired: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showReviewDialog by remember { mutableStateOf(false) }
+    var isSubmittingForDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.isSubmittingReview, state.reviewErrorMessage) {
+        if (isSubmittingForDialog && !state.isSubmittingReview && state.reviewErrorMessage == null) {
+            showReviewDialog = false
+            isSubmittingForDialog = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -170,11 +189,104 @@ fun TitleDetailsScreen(
                         Text(text = "Recenzije", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
 
+                    item {
+                        ReviewCallToAction(
+                            isLoggedIn = isLoggedIn,
+                            canReview = state.canReview,
+                            hasMyReview = state.myReview != null,
+                            onWriteReview = { if (isLoggedIn) showReviewDialog = true else onLoginRequired() },
+                            onDeleteReview = viewModel::deleteReview
+                        )
+                    }
+
                     if (state.reviews.isEmpty()) {
                         item { Text("Još nema recenzija za ovaj naslov.", style = MaterialTheme.typography.bodyMedium) }
                     } else {
                         items(state.reviews, key = { it.recenzija.id }) { reviewItem ->
                             ReviewRow(reviewItem)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showReviewDialog) {
+        ReviewFormDialog(
+            initial = state.myReview,
+            isSubmitting = state.isSubmittingReview,
+            errorMessage = state.reviewErrorMessage,
+            onDismiss = { showReviewDialog = false },
+            onSubmit = { ocjena, komentar ->
+                isSubmittingForDialog = true
+                viewModel.submitReview(ocjena, komentar)
+            }
+        )
+    }
+}
+
+@Composable
+private fun ReviewCallToAction(
+    isLoggedIn: Boolean,
+    canReview: Boolean,
+    hasMyReview: Boolean,
+    onWriteReview: () -> Unit,
+    onDeleteReview: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onWriteReview, enabled = !isLoggedIn || canReview) {
+                Text(if (hasMyReview) "Uredi recenziju" else "Ostavi recenziju")
+            }
+            if (hasMyReview) {
+                OutlinedButton(onClick = onDeleteReview) { Text("Obriši recenziju") }
+            }
+        }
+        if (isLoggedIn && !canReview) {
+            Text(
+                text = "Dostupno nakon što označite naslov kao odgledan",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewFormDialog(
+    initial: Recenzija?,
+    isSubmitting: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onSubmit: (Int, String) -> Unit
+) {
+    var rating by remember { mutableStateOf(initial?.ocjena ?: 0) }
+    var comment by remember { mutableStateOf(initial?.komentar ?: "") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text = "Ocijenite naslov", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                RatingInput(rating = rating, onRatingChange = { rating = it })
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { if (it.length <= 500) comment = it },
+                    label = { Text("Komentar (opciono)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text("${comment.length}/500") }
+                )
+                errorMessage?.let { Text(text = it, color = MaterialTheme.colorScheme.error) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss, enabled = !isSubmitting) { Text("Otkaži") }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Button(onClick = { onSubmit(rating, comment) }, enabled = !isSubmitting && rating in 1..5) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                        } else {
+                            Text("Sačuvaj")
                         }
                     }
                 }
