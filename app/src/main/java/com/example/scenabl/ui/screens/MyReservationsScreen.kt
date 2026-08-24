@@ -10,54 +10,41 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.scenabl.data.model.ReservationStatus
+import com.example.scenabl.ui.util.ObserveSnackbarMessage
 import com.example.scenabl.ui.util.formatDateTime
 import com.example.scenabl.viewmodel.MyReservationsViewModel
 import com.example.scenabl.viewmodel.ReservationItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyReservationsScreen(
-    viewModel: MyReservationsViewModel,
-    onBack: () -> Unit
-) {
+fun MyReservationsScreen(viewModel: MyReservationsViewModel) {
     val state by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(state.message) {
-        if (state.message != null) viewModel.consumeMessage()
-    }
+    ObserveSnackbarMessage(state.message, snackbarHostState, viewModel::consumeMessage)
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Moje rezervacije") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Nazad")
-                    }
-                }
-            )
-        }
+        topBar = { TopAppBar(title = { Text("Moje rezervacije") }) },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
             state.isLoading -> Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {

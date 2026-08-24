@@ -64,4 +64,6 @@ class MyListsViewModel(
             onFailure = { e -> _uiState.update { it.copy(errorMessage = e.message) } }
         )
     }
+
+    fun consumeError() = _uiState.update { it.copy(errorMessage = null) }
 }

@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,12 +24,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scenabl.data.model.ListType
+import com.example.scenabl.ui.util.ObserveSnackbarMessage
 import com.example.scenabl.viewmodel.ListEntryItem
 import com.example.scenabl.viewmodel.MyListsViewModel
 
@@ -46,24 +49,18 @@ import com.example.scenabl.viewmodel.MyListsViewModel
 @Composable
 fun MyListsScreen(
     viewModel: MyListsViewModel,
-    onBack: () -> Unit,
     onTitleClick: (String) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val tabs = listOf(ListType.ZELIM_GLEDATI to "Želim gledati", ListType.ODGLEDANO to "Odgledano")
     val selectedIndex = tabs.indexOfFirst { it.first == state.selectedTab }.coerceAtLeast(0)
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    ObserveSnackbarMessage(state.errorMessage, snackbarHostState, viewModel::consumeError)
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Moje liste") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Nazad")
-                    }
-                }
-            )
-        }
+        topBar = { TopAppBar(title = { Text("Moje liste") }) },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             SecondaryTabRow(selectedTabIndex = selectedIndex) {

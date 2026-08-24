@@ -35,8 +35,7 @@ data class ReservationItem(
 data class MyReservationsUiState(
     val reservations: List<ReservationItem> = emptyList(),
     val isLoading: Boolean = true,
-    val message: String? = null,
-    val isError: Boolean = false
+    val message: String? = null
 )
 
 class MyReservationsViewModel(
@@ -69,17 +68,15 @@ class MyReservationsViewModel(
                         )
                     }
             }
-                .catch { e -> _uiState.update { it.copy(isLoading = false, message = e.message, isError = true) } }
+                .catch { e -> _uiState.update { it.copy(isLoading = false, message = e.message) } }
                 .collect { items -> _uiState.update { it.copy(reservations = items, isLoading = false) } }
         }
     }
 
     fun cancelReservation(reservationId: String) = viewModelScope.launch {
         reservationRepository.cancelReservation(reservationId).fold(
-            onSuccess = { _uiState.update { it.copy(message = "Rezervacija je otkazana.", isError = false) } },
-            onFailure = { e ->
-                _uiState.update { it.copy(message = "Otkazivanje nije uspjelo: ${e.message}", isError = true) }
-            }
+            onSuccess = { _uiState.update { it.copy(message = "Rezervacija je otkazana.") } },
+            onFailure = { e -> _uiState.update { it.copy(message = "Otkazivanje nije uspjelo: ${e.message}") } }
         )
     }
 

@@ -136,6 +136,8 @@ class TitleDetailsViewModel(
         }
     }
 
+    fun consumeError() = _uiState.update { it.copy(errorMessage = null) }
+
     /** Creates or edits (REQ-REV-002) the current user's review for this title. */
     fun submitReview(ocjena: Int, komentar: String) {
         val uid = currentUserId ?: return

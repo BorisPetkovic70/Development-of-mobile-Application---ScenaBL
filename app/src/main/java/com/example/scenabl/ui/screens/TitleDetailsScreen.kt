@@ -28,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -51,6 +53,7 @@ import com.example.scenabl.data.model.Recenzija
 import com.example.scenabl.data.model.TitleType
 import com.example.scenabl.ui.components.RatingInput
 import com.example.scenabl.ui.components.RatingStars
+import com.example.scenabl.ui.util.ObserveSnackbarMessage
 import com.example.scenabl.ui.util.formatDate
 import com.example.scenabl.ui.util.formatDateTime
 import com.example.scenabl.viewmodel.ReviewItem
@@ -68,6 +71,7 @@ fun TitleDetailsScreen(
     val state by viewModel.uiState.collectAsState()
     var showReviewDialog by remember { mutableStateOf(false) }
     var isSubmittingForDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.isSubmittingReview, state.reviewErrorMessage) {
         if (isSubmittingForDialog && !state.isSubmittingReview && state.reviewErrorMessage == null) {
@@ -75,6 +79,8 @@ fun TitleDetailsScreen(
             isSubmittingForDialog = false
         }
     }
+
+    ObserveSnackbarMessage(state.errorMessage, snackbarHostState, viewModel::consumeError)
 
     Scaffold(
         topBar = {
@@ -86,7 +92,8 @@ fun TitleDetailsScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
             state.isLoading -> Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {

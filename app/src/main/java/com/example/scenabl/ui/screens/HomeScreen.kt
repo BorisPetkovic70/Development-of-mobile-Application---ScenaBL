@@ -72,7 +72,6 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     isLoggedIn: Boolean,
     onTitleClick: (String) -> Unit,
-    onProfileClick: () -> Unit,
     onLoginClick: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -83,8 +82,10 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("ScenaBL") },
                 actions = {
-                    IconButton(onClick = if (isLoggedIn) onProfileClick else onLoginClick) {
-                        Icon(Icons.Filled.Person, contentDescription = "Profil")
+                    if (!isLoggedIn) {
+                        IconButton(onClick = onLoginClick) {
+                            Icon(Icons.Filled.Person, contentDescription = "Prijavi se")
+                        }
                     }
                 }
             )

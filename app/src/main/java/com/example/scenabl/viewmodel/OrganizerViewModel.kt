@@ -25,8 +25,7 @@ data class OrganizerUiState(
     val titles: List<Naslov> = emptyList(),
     val performancesByTitle: Map<String, List<Izvodjenje>> = emptyMap(),
     val isLoading: Boolean = true,
-    val message: String? = null,
-    val isError: Boolean = false
+    val message: String? = null
 )
 
 /** Dashboard for organizer accounts: repertoire (title/performance CRUD) and a reservation
@@ -56,7 +55,7 @@ class OrganizerViewModel(
                     observeOwnData(institucija.id)
                 }
             },
-            onFailure = { e -> _uiState.update { it.copy(isLoading = false, message = e.message, isError = true) } }
+            onFailure = { e -> _uiState.update { it.copy(isLoading = false, message = e.message) } }
         )
     }
 
@@ -70,7 +69,7 @@ class OrganizerViewModel(
                 val ownTitleIds = ownTitles.map { it.id }.toSet()
                 ownTitles to performances.filter { it.titleId in ownTitleIds }.groupBy { it.titleId }
             }
-                .catch { e -> _uiState.update { it.copy(isLoading = false, message = e.message, isError = true) } }
+                .catch { e -> _uiState.update { it.copy(isLoading = false, message = e.message) } }
                 .collect { (titles, grouped) ->
                     _uiState.update { it.copy(titles = titles, performancesByTitle = grouped, isLoading = false) }
                 }
@@ -83,7 +82,7 @@ class OrganizerViewModel(
     fun setupInstitution() {
         val state = _uiState.value
         if (state.institutionNameInput.isBlank()) {
-            _uiState.update { it.copy(message = "Naziv ustanove je obavezan.", isError = true) }
+            _uiState.update { it.copy(message = "Naziv ustanove je obavezan.") }
             return
         }
         viewModelScope.launch {
@@ -101,7 +100,7 @@ class OrganizerViewModel(
                     }
                     observeOwnData(id)
                 },
-                onFailure = { e -> _uiState.update { it.copy(isSavingInstitution = false, message = e.message, isError = true) } }
+                onFailure = { e -> _uiState.update { it.copy(isSavingInstitution = false, message = e.message) } }
             )
         }
     }
@@ -109,8 +108,8 @@ class OrganizerViewModel(
     /** Cancelling sets status=cancelled rather than deleting, preserving existing reservations (REQ-ORG-004). */
     fun cancelPerformance(id: String) = viewModelScope.launch {
         performanceRepository.cancelPerformance(id).fold(
-            onSuccess = { _uiState.update { it.copy(message = "Izvođenje je otkazano.", isError = false) } },
-            onFailure = { e -> _uiState.update { it.copy(message = "Otkazivanje nije uspjelo: ${e.message}", isError = true) } }
+            onSuccess = { _uiState.update { it.copy(message = "Izvođenje je otkazano.") } },
+            onFailure = { e -> _uiState.update { it.copy(message = "Otkazivanje nije uspjelo: ${e.message}") } }
         )
     }
 
