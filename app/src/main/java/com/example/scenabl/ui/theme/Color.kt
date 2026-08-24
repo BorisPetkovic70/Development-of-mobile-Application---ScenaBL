@@ -2,10 +2,16 @@ package com.example.scenabl.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Light theme — Red-Orange
+val RedOrangePrimaryLight = Color(0xFFD84315)
+val RedOrangeOnPrimaryLight = Color(0xFFFFFFFF)
+val RedOrangePrimaryContainerLight = Color(0xFFFFDBD1)
+val RedOrangeSecondaryLight = Color(0xFF77574E)
+val RedOrangeSurfaceLight = Color(0xFFFFF8F6)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Dark theme — Red-Orange
+val RedOrangePrimaryDark = Color(0xFFFFB5A0)
+val RedOrangeOnPrimaryDark = Color(0xFF5C1500)
+val RedOrangePrimaryContainerDark = Color(0xFF9C2A00)
+val RedOrangeSecondaryDark = Color(0xFFE4BFA7)
+val RedOrangeSurfaceDark = Color(0xFF201A18)
