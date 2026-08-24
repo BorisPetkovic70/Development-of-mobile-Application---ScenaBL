@@ -15,6 +15,9 @@ import com.example.scenabl.ui.screens.AuthScreen
 import com.example.scenabl.ui.screens.HomeScreen
 import com.example.scenabl.ui.screens.MyListsScreen
 import com.example.scenabl.ui.screens.MyReservationsScreen
+import com.example.scenabl.ui.screens.OrganizerDashboardScreen
+import com.example.scenabl.ui.screens.OrganizerPerformanceFormScreen
+import com.example.scenabl.ui.screens.OrganizerTitleFormScreen
 import com.example.scenabl.ui.screens.ProfileScreen
 import com.example.scenabl.ui.screens.ReservationScreen
 import com.example.scenabl.ui.screens.TitleDetailsScreen
@@ -22,6 +25,9 @@ import com.example.scenabl.viewmodel.AuthViewModel
 import com.example.scenabl.viewmodel.HomeViewModel
 import com.example.scenabl.viewmodel.MyListsViewModel
 import com.example.scenabl.viewmodel.MyReservationsViewModel
+import com.example.scenabl.viewmodel.OrganizerPerformanceFormViewModel
+import com.example.scenabl.viewmodel.OrganizerTitleFormViewModel
+import com.example.scenabl.viewmodel.OrganizerViewModel
 import com.example.scenabl.viewmodel.ProfileViewModel
 import com.example.scenabl.viewmodel.ReservationViewModel
 import com.example.scenabl.viewmodel.TitleDetailsViewModel
@@ -160,7 +166,8 @@ fun ScenaBLApp(appContainer: AppContainer) {
                         }
                     },
                     onMyListsClick = { navController.navigate(Screen.MyLists.route) },
-                    onMyReservationsClick = { navController.navigate(Screen.MyReservations.route) }
+                    onMyReservationsClick = { navController.navigate(Screen.MyReservations.route) },
+                    onOrganizerDashboardClick = { navController.navigate(Screen.OrganizerDashboard.route) }
                 )
             }
         }
@@ -205,6 +212,85 @@ fun ScenaBLApp(appContainer: AppContainer) {
                     onBack = { navController.popBackStack() }
                 )
             }
+        }
+
+        composable(Screen.OrganizerDashboard.route) {
+            val uid = appContainer.authRepository.currentUserId
+            if (uid == null) {
+                LaunchedEffect(Unit) { navController.popBackStack() }
+            } else {
+                val organizerViewModel: OrganizerViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer {
+                            OrganizerViewModel(
+                                uid,
+                                appContainer.userRepository,
+                                appContainer.titleRepository,
+                                appContainer.performanceRepository
+                            )
+                        }
+                    }
+                )
+                OrganizerDashboardScreen(
+                    viewModel = organizerViewModel,
+                    onBack = { navController.popBackStack() },
+                    onCreateTitle = { institutionId -> navController.navigate(Screen.OrganizerTitleForm.createRoute(institutionId)) },
+                    onEditTitle = { institutionId, titleId ->
+                        navController.navigate(Screen.OrganizerTitleForm.editRoute(institutionId, titleId))
+                    },
+                    onAddPerformance = { institutionId, titleId ->
+                        navController.navigate(Screen.OrganizerPerformanceForm.route(institutionId, titleId))
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = Screen.OrganizerTitleForm.route,
+            arguments = listOf(
+                navArgument("institutionId") { type = NavType.StringType },
+                navArgument("titleId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val institutionId = backStackEntry.arguments?.getString("institutionId").orEmpty()
+            val titleId = backStackEntry.arguments?.getString("titleId")
+            val titleFormViewModel: OrganizerTitleFormViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { OrganizerTitleFormViewModel(titleId, institutionId, appContainer.titleRepository) }
+                }
+            )
+            OrganizerTitleFormScreen(
+                viewModel = titleFormViewModel,
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.OrganizerPerformanceForm.route,
+            arguments = listOf(
+                navArgument("institutionId") { type = NavType.StringType },
+                navArgument("titleId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val institutionId = backStackEntry.arguments?.getString("institutionId").orEmpty()
+            val titleId = backStackEntry.arguments?.getString("titleId").orEmpty()
+            val performanceFormViewModel: OrganizerPerformanceFormViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        OrganizerPerformanceFormViewModel(titleId, institutionId, appContainer.performanceRepository)
+                    }
+                }
+            )
+            OrganizerPerformanceFormScreen(
+                viewModel = performanceFormViewModel,
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
+            )
         }
     }
 }

@@ -47,7 +47,8 @@ fun ProfileScreen(
     viewModel: ProfileViewModel,
     onLoggedOut: () -> Unit,
     onMyListsClick: () -> Unit,
-    onMyReservationsClick: () -> Unit
+    onMyReservationsClick: () -> Unit,
+    onOrganizerDashboardClick: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -128,6 +129,12 @@ fun ProfileScreen(
                 }
                 OutlinedButton(onClick = onMyReservationsClick, modifier = Modifier.fillMaxWidth()) {
                     Text("Moje rezervacije")
+                }
+            }
+
+            if (state.korisnik?.role == UserRole.ORGANIZER) {
+                OutlinedButton(onClick = onOrganizerDashboardClick, modifier = Modifier.fillMaxWidth()) {
+                    Text("Organizator - repertoar")
                 }
             }
 
