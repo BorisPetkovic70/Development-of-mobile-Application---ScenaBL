@@ -39,4 +39,16 @@ class ReviewRemoteDataSource(private val firestore: FirebaseFirestore) {
             }
         awaitClose { listener.remove() }
     }
+
+    /** Used by HomeScreen to compute each title's average rating (REQ-BROW-001) without one query per title. */
+    fun observeAllReviews(): Flow<List<Recenzija>> = callbackFlow {
+        val listener = reviews.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            trySend(snapshot?.toObjects(Recenzija::class.java) ?: emptyList())
+        }
+        awaitClose { listener.remove() }
+    }
 }

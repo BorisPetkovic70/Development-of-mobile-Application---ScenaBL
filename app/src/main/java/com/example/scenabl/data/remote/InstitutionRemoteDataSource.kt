@@ -14,6 +14,17 @@ class InstitutionRemoteDataSource(private val firestore: FirebaseFirestore) {
     suspend fun createInstitution(institucija: Institucija): String =
         institutions.add(institucija).await().id
 
+    fun observeInstitutions(): Flow<List<Institucija>> = callbackFlow {
+        val listener = institutions.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            trySend(snapshot?.toObjects(Institucija::class.java) ?: emptyList())
+        }
+        awaitClose { listener.remove() }
+    }
+
     suspend fun getInstitutionByOwner(ownerUid: String): Institucija? =
         institutions.whereEqualTo("ownerUid", ownerUid).limit(1).get().await()
             .documents.firstOrNull()?.toObject(Institucija::class.java)

@@ -4,4 +4,7 @@ sealed class Screen(val route: String) {
     object Auth : Screen("auth")
     object Main : Screen("main")
     object Profile : Screen("profile")
+    object TitleDetails : Screen("titleDetails/{titleId}") {
+        fun route(titleId: String) = "titleDetails/$titleId"
+    }
 }

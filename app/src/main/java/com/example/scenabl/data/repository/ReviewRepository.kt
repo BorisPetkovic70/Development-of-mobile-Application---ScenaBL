@@ -20,4 +20,6 @@ class ReviewRepository(private val remote: ReviewRemoteDataSource) {
 
     fun observeReviewsForTitle(titleId: String): Flow<List<Recenzija>> =
         remote.observeReviewsForTitle(titleId)
+
+    fun observeAllReviews(): Flow<List<Recenzija>> = remote.observeAllReviews()
 }

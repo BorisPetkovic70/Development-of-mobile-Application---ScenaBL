@@ -36,6 +36,8 @@ class UserRepository(
 
     fun observeInstitution(id: String): Flow<Institucija?> = institutionRemote.observeInstitution(id)
 
+    fun observeInstitutions(): Flow<List<Institucija>> = institutionRemote.observeInstitutions()
+
     suspend fun uploadProfileImage(bytes: ByteArray, filename: String): Result<String> = runCatching {
         imgBbRemote.uploadImage(bytes, filename)
     }

@@ -5,15 +5,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.scenabl.di.AppContainer
 import com.example.scenabl.ui.screens.AuthScreen
-import com.example.scenabl.ui.screens.MainScreen
+import com.example.scenabl.ui.screens.HomeScreen
 import com.example.scenabl.ui.screens.ProfileScreen
+import com.example.scenabl.ui.screens.TitleDetailsScreen
 import com.example.scenabl.viewmodel.AuthViewModel
+import com.example.scenabl.viewmodel.HomeViewModel
 import com.example.scenabl.viewmodel.ProfileViewModel
+import com.example.scenabl.viewmodel.TitleDetailsViewModel
 
 @Composable
 fun ScenaBLApp(appContainer: AppContainer) {
@@ -44,14 +49,52 @@ fun ScenaBLApp(appContainer: AppContainer) {
         }
 
         composable(Screen.Main.route) {
-            MainScreen(
-                authRepository = appContainer.authRepository,
+            val homeViewModel: HomeViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        HomeViewModel(
+                            appContainer.performanceRepository,
+                            appContainer.titleRepository,
+                            appContainer.userRepository,
+                            appContainer.reviewRepository
+                        )
+                    }
+                }
+            )
+            HomeScreen(
+                viewModel = homeViewModel,
+                isLoggedIn = appContainer.authRepository.currentUserId != null,
+                onTitleClick = { titleId -> navController.navigate(Screen.TitleDetails.route(titleId)) },
                 onProfileClick = { navController.navigate(Screen.Profile.route) },
                 onLoginClick = {
                     navController.navigate(Screen.Auth.route) {
                         popUpTo(Screen.Main.route) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(
+            route = Screen.TitleDetails.route,
+            arguments = listOf(navArgument("titleId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val titleId = backStackEntry.arguments?.getString("titleId").orEmpty()
+            val titleDetailsViewModel: TitleDetailsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        TitleDetailsViewModel(
+                            titleId,
+                            appContainer.titleRepository,
+                            appContainer.performanceRepository,
+                            appContainer.reviewRepository,
+                            appContainer.userRepository
+                        )
+                    }
+                }
+            )
+            TitleDetailsScreen(
+                viewModel = titleDetailsViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
 

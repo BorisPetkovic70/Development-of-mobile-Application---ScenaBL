@@ -10,6 +10,8 @@ class PerformanceRepository(private val remote: PerformanceRemoteDataSource) {
     fun observePerformancesForTitle(titleId: String): Flow<List<Izvodjenje>> =
         remote.observePerformancesForTitle(titleId)
 
+    fun observeUpcomingPerformances(): Flow<List<Izvodjenje>> = remote.observeUpcomingPerformances()
+
     fun observePerformance(id: String): Flow<Izvodjenje?> = remote.observePerformance(id)
 
     suspend fun createPerformance(izvodjenje: Izvodjenje): Result<String> = runCatching {
