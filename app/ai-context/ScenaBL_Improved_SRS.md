@@ -3,7 +3,7 @@
 **Naziv aplikacije:** ScenaBL (Pozorišni i filmski vodič)
 **Student:** Boris Petković
 **Predmet:** Razvoj smartfon-aplikacija
-**Verzija:** 1.0 (finalna specifikacija, usklađena sa implementacijom)
+**Verzija:** 1.0 
 
 ---
 
@@ -309,6 +309,4 @@ flowchart TB
     Ustanova --> UC9[Pregled rezervacija po izvođenju]
 ```
 
-### 6.3 Rečnik pojmova
 
-Vidi tabelu u poglavlju 1.3 — konsolidovana radi izbjegavanja duplikata.
